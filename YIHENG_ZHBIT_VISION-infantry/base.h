@@ -44,7 +44,7 @@ galaxy_0.xml"
 //****** 装甲板识别配置 *****
 #define ARMOR_TRACK_BAR
 #define DEBUG_ARMOR_DETECT
-#define ROI_ENABLE
+#define ROI_ENABLE   //通过历史数据得到目标ROI矩形
 
 //****** 能量机关识别信息 *****
 //#define BUFF_TRACK_BAR

@@ -89,7 +89,7 @@ public:
             if(!is_change_target){
                 double t2 = getTickCount();
                 double t = (t2 - change_time)*1000 / getTickFrequency();
-                if(t > repeat_time){
+                if(t > repeat_time){   //repeat_time  重复发送时间：1000ms
 //                    printf("重复激活\r\n");
                     change_time = getTickCount();
 #ifndef NO_REPEAT_FIRE
@@ -124,7 +124,7 @@ public:
             cnt_ -= 3;
             if(cnt_<0) cnt_ = 0;
         }
-        if(cnt_ > max_cnt_)
+        if(cnt_ > max_cnt_)  //max_cnt最大丢失目标数目
         {
             cnt_ = 0;
             if(shoot_chance_ == true)

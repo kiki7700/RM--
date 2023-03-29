@@ -167,11 +167,11 @@ bool armor::is_suitable_size(void) const
     return false;
 }
 
-
+//获取ROI区域
 Rect ArmorDetector::GetRoi(const Mat &img)
 {
     Size img_size = img.size();
-    Rect rect_tmp = last_target_;
+    Rect rect_tmp = last_target_;  //最新目标
     Rect rect_roi;
     if(rect_tmp.x == 0 || rect_tmp.y == 0
             || rect_tmp.width == 0 || rect_tmp.height == 0
@@ -187,6 +187,7 @@ Rect ArmorDetector::GetRoi(const Mat &img)
     }
     else
     {
+        //根据检测到的确定装甲板数量确定roi的大小
         float scale = 2;
         if (lost_cnt_ < 30)
             scale = 3;
@@ -195,6 +196,7 @@ Rect ArmorDetector::GetRoi(const Mat &img)
         else if(lost_cnt_ <= 120)
             scale = 5;
 
+        //更新roi的大小
         int w = int(rect_tmp.width * scale);
         int h = int(rect_tmp.height * scale);
         int x = int(rect_tmp.x - (w - rect_tmp.width)*0.5f);
@@ -210,6 +212,7 @@ Rect ArmorDetector::GetRoi(const Mat &img)
     return rect_roi;
 }
 
+//装甲板识别
 bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
 {
     // **预处理** -图像进行相应颜色的二值化
@@ -217,12 +220,13 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
     Point2f offset_roi_point(roi_rect.x, roi_rect.y);
     vector<LED_Stick> LED_Stick_v;  // 声明所有可能的灯条容器
     Mat binary_brightness_img, binary_color_img, gray,mixed_img, mixed_binary_img;
-    cvtColor(roi_image,gray,COLOR_BGR2GRAY);
+    cvtColor(roi_image,gray,COLOR_BGR2GRAY);  //对图像进行色彩空间的转换
     //    Mat element = getStructuringElement(MORPH_RECT, Size(3,3));
     //    dilate(img, img, element);
     vector<cv::Mat> bgr;
-    split(roi_image, bgr);
+    split(roi_image, bgr);  //分离bgr
     Mat result_img;
+    //判断为是蓝色或红色识别
     if(color_ == 0)
     {
         subtract(bgr[2], bgr[1], result_img);
@@ -231,14 +235,14 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
         subtract(bgr[0], bgr[2], result_img);
     }
 
-    threshold(gray, binary_brightness_img, gray_th_, 255, CV_THRESH_BINARY);
+    threshold(gray, binary_brightness_img, gray_th_, 255, CV_THRESH_BINARY);  //图像的二值化：将图像的像素点的灰度值设为0或255，使图像呈现黑白效果。二值化使图像中的数值量大为减少，从未凸显图像的轮廓。用threshold()来实现
     threshold(result_img, binary_color_img, color_th_, 255, CV_THRESH_BINARY);
-    addWeighted(binary_brightness_img,0.5,binary_color_img,0.5,0,mixed_img);
-
+    //mixed_img=binary_brightness_img*0.5+binary_color_img*0.5+0
+    addWeighted(binary_brightness_img,0.5,binary_color_img,0.5,0,mixed_img);  //计算两个数组(图像阵列)的加权和,可以实现两张图片的融合
     threshold(mixed_img,mixed_binary_img,150,255,CV_THRESH_BINARY);
+    //先膨胀后腐蚀，用来填充图像中的小洞
     dilate(mixed_binary_img,mixed_binary_img,getStructuringElement(MORPH_RECT,Size(15,15)));
     erode(mixed_binary_img,mixed_binary_img,getStructuringElement(MORPH_RECT,Size(13,13)));
-
 
     imshow("binary_brightness_img", binary_brightness_img);
     imshow("binary_color_img", binary_color_img);
@@ -251,28 +255,30 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
 #endif
     vector<vector<Point>> contours_light;
     vector<vector<Point>> contours_brightness;
-    findContours(binary_color_img, contours_light, RETR_EXTERNAL, CHAIN_APPROX_NONE);
+    findContours(binary_color_img, contours_light, RETR_EXTERNAL, CHAIN_APPROX_NONE);  //轮廓检测。contours_light：向量内每个元素保存了一组由连续的Point点构成的点的集合的向量，每一个Point点集就是一个轮廓
     findContours(binary_brightness_img, contours_brightness, RETR_EXTERNAL, CHAIN_APPROX_NONE);
     //#pragma omp for
     for(size_t i = 0; i < contours_brightness.size(); i++)
     {
+        //area为contours_brightness[i]的轮廓面积
         double area = contourArea(contours_brightness[i]);
-        if (area < 20.0 || 1e5 < area) continue;
+        if (area < 20.0 || 1e5 < area)  //判断是否是正常轮廓
+             continue;
         for(size_t ii = 0; ii < contours_light.size(); ii++)
         {
-            if(pointPolygonTest(contours_light[ii], contours_brightness[i][0], false) >= 0.0 )
+            if(pointPolygonTest(contours_light[ii], contours_brightness[i][0], false) >= 0.0 )  //判断点是否在轮廓中
             {
                 double length = arcLength(contours_brightness[i], true); // 灯条周长
                 if (length > 15 && length <4000)
                 {                    // 使用拟合椭圆的方法要比拟合最小矩形提取出来的角度更精确
-                    RotatedRect RRect = fitEllipse(contours_brightness[i]);
+                    RotatedRect RRect = fitEllipse(contours_brightness[i]);  //fitE函数把点集拟合成旋转矩形
 #ifdef SHOW_LIGHT_CONTOURS
                     // 旋转矩形提取四个点
                     Point2f rect_point[4];
                     RRect.points(rect_point);
                     for (int i = 0; i < 4 ; i++)
                     {
-                        line(img, rect_point[i]+offset_roi_point, rect_point[(i+1)%4]+offset_roi_point, Scalar(255,0,255),1);
+                        line(img, rect_point[i]+offset_roi_point, rect_point[(i+1)%4]+offset_roi_point, Scalar(255,0,255),1);  //根据点绘制线段
                     }
 #endif
                     // 角度换算，将拟合椭圆0~360 -> -180~180
@@ -297,7 +303,7 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
     {
         for(size_t j = i + 1; j < LED_Stick_v.size() ; j++)
         {
-            armor arm_tmp( LED_Stick_v.at(i), LED_Stick_v.at(j) );
+               arm_tmp( LED_Stick_v.at(i), LED_Stick_v.at(j) );
             if (arm_tmp.error_angle < 8.0f)
             {
 #ifdef SHOW_ARMOR_PUT_TEXT
@@ -330,14 +336,14 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
 
     // **选择装甲板** -根据距离图像中心最短选择
     float dist=1e8;
-    bool found_flag = false;
+    bool found_flag = false;  //是否找到装甲板
     armor target;
     Point2f roi_center(roi_rect.width/2, roi_rect.height/2);
     float dx,dy;
     for (size_t i = 0; i < final_armor_list.size() ; i++ )
     {
 #ifdef FAST_DISTANCE
-        dx = fabs(final_armor_list.at(i).center.x - roi_center.x);
+        dx = fabs(final_armor_list.at(i).center.x - roi_center.x);  //返回浮点数的绝对值
         dy = fabs(final_armor_list.at(i).center.y - roi_center.y);
 #else
         dx = pow((final_armor_list.at(i).center.x - roi_center.x), 2.0f);
@@ -412,8 +418,8 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
             is_small_ = 0;
 
         //计算ROI的相关参数
-        last_target_ = boundingRect(points_roi_tmp);
-        rectangle(img, last_target_,Scalar(255,255,255), 1);
+        last_target_ = boundingRect(points_roi_tmp);  //矩形边框，用最小的矩形，把图形包围起来。返回四个值：x,y为矩形左上角的坐标 ，w,h为矩形的宽和高
+        rectangle(img, last_target_,Scalar(255,255,255), 1);  //画出矩形
         lost_cnt_ = 0;
     }else {
         //计算ROI的相关参数
@@ -423,7 +429,7 @@ bool ArmorDetector::DetectArmor(Mat &img, Rect roi_rect)
     return found_flag;
 }
 
-
+//自瞄任务(识别，角度解算)
 int ArmorDetector::ArmorDetectTask(Mat &img,OtherParam other_param)
 {
     //    double t1 = getTickCount();
@@ -438,7 +444,7 @@ int ArmorDetector::ArmorDetectTask(Mat &img,OtherParam other_param)
     Size img_size = img.size();
     Rect roi = Rect(0,0, img_size.width, img_size.height);
 #endif
-    if(DetectArmor(img, roi))
+    if(DetectArmor(img, roi))  //是否识别到装甲板
     {
         // 精简角度解算算法参数
 #ifdef SIMPLE_SOLVE_ANGLE_FOR_ARMOR_DETECT
@@ -467,8 +473,7 @@ int ArmorDetector::ArmorDetectTask(Mat &img,OtherParam other_param)
         }
         else                    // far
         {
-#ifdef SIMPLE_SOLV
-            E_ANGLE_FOR_ARMOR_DETECT
+#ifdef SIMPLE_SOLVE_ANGLE_FOR_ARMOR_DETECT
             long_simple_solve.getAngle(screen_point.x, screen_point.y, dh, angle_x_, angle_y_, distance_);
 #else
             solve_angle_long_.Generate3DPoints((uint)final_armor_type, Point2f());
@@ -530,6 +535,7 @@ int ArmorDetector::ArmorDetectTask(Mat &img,OtherParam other_param)
     }
 }
 
+//确定装甲板类型
 bool ArmorDetector::getTypeResult(bool is_small)
 {
     if (history_.size() < filter_size_){
@@ -550,6 +556,7 @@ bool ArmorDetector::getTypeResult(bool is_small)
     return vote_cnt[0] > vote_cnt[1] ? 0 : 1;
 }
 
+//选择相机类型，长短焦切换逻辑
 bool ArmorDetector::chooseCamera(int short_distance, int long_distance, bool last_mode)
 {
     // 没找到目标距离为0
@@ -559,7 +566,7 @@ bool ArmorDetector::chooseCamera(int short_distance, int long_distance, bool las
     bool output_type = last_mode;
     if(distance_ == 0)
     {
-        if(lost_cnt_ % 200 == 0 && lost_cnt_ != 0)
+        if(lost_cnt_ % 200 == 0 && lost_cnt_ != 0)  //丢失目标自动切换以防止漏检测的情况以及避免反复更换相机的情况。
         {
             if(last_mode == true)
                 temp_type =  false;
@@ -574,7 +581,7 @@ bool ArmorDetector::chooseCamera(int short_distance, int long_distance, bool las
         if(dist_ == 0)
             dist_ = distance_;
         else
-            dist_ = (1-r_)*dist_ + r_*distance_;
+            dist_ = (1-r_)*dist_ + r_*distance_;  //r为刷新频率，介于0.0--1.0之间；distance_为上一个装甲板角度解算的距离；dist_用于最终判断是否需要切换镜头
         if(dist_ > long_distance && last_mode == 0)
             temp_type = true;
         else if(dist_ < short_distance && last_mode == 1)

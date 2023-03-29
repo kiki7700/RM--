@@ -213,7 +213,7 @@ private:
 
 private:
     // ｒｏｉ参数
-    Rect last_target_;
+    Rect last_target_;   //Rect对象用来存储矩形的左上角坐标、宽度和高度
     int lost_cnt_ = 0;
     int detect_cnt_ = 0;
 

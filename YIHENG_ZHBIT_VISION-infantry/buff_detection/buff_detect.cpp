@@ -19,15 +19,15 @@
 bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
 {
 
-    GaussianBlur(img, img, Size(3,3),0);
-    // **预处理** -图像进行相应颜色的二值化
+    GaussianBlur(img, img, Size(3,3),0);  //高斯滤波：对图像领域内进行平滑时，领域内不同位置的像素被赋予不同权值
+    // **预处理** -图像进行相应颜色的二值化：将图像的像素值转换成0或255
     points_2d.clear();
     vector<cv::Mat> bgr;
     split(img, bgr);
     Mat result_img;
     if(color_ != 0)
     {
-        subtract(bgr[2], bgr[1], result_img);
+        subtract(bgr[2], bgr[1], result_img);  //做减法
     }else
     {
         subtract(bgr[0], bgr[2], result_img);
@@ -39,7 +39,7 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
         threshold(result_img, binary_color_img, th-10, 255, CV_THRESH_BINARY);
 #endif
 #ifndef TEST_OTSU
-    threshold(result_img, binary_color_img, color_th_, 255, CV_THRESH_BINARY);
+    threshold(result_img, binary_color_img, color_th_, 255, CV_THRESH_BINARY);  //color_th:阈值，255：图像中最大的值
 #endif
     //        Mat element = getStructuringElement(MORPH_RECT, Size(5,5));
     //        morphologyEx(binary_color_img,binary_color_img,MORPH_CLOSE,element);
@@ -58,7 +58,7 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
     vector<Rect> vec_color_rect;
     vector<vector<Point>> contours;
     vector<Vec4i> hierarchy;
-    findContours(binary_color_img,contours,hierarchy,CV_RETR_CCOMP,CHAIN_APPROX_NONE);
+    findContours(binary_color_img,contours,hierarchy,CV_RETR_CCOMP,CHAIN_APPROX_NONE);  //找轮廓。`hierarchy`，定义为`vector<Vec4i>hirerarchy`，Vec4i是Vec<int,4>的别名，定义了一个“向量内每一个元素包含了4个int型变量”的向量。hierarchy也是一个向量，hierarchy[i][0] ~hierarchy[i][3]，分别表示第i个轮廓的后一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的索引编号。如果当前轮廓没有对应的后一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的话，则`hierarchy[i][0]~hierarchy[i][3]`的相应位被设置为默认值-1。`CV_RETR_CCOMP`检测所有的轮廓
     for(size_t i=0; i < contours.size();i++)
     {
 
@@ -67,8 +67,8 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
             continue;
 
         // 小轮廓面积条件
-        double small_rect_area = contourArea(contours[i]);
-        double small_rect_length = arcLength(contours[i],true);
+        double small_rect_area = contourArea(contours[i]);  //contourArea计算轮廓面积
+        double small_rect_length = arcLength(contours[i],true);  //计算轮廓的周长；第二个参数：判断轮廓是否是封闭的
         if(small_rect_length < 10)
             continue;
         // 用于超预测时比例扩展时矩形的判断
