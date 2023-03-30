@@ -16,6 +16,7 @@
  ***************************************************************************/
 #include "buff_detect.h"
 
+//检测需要击打的能量机关
 bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
 {
 
@@ -72,7 +73,7 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
         if(small_rect_length < 10)
             continue;
         // 用于超预测时比例扩展时矩形的判断
-        Rect rect = boundingRect(contours[static_cast<uint>(hierarchy[i][3])]);
+        Rect rect = boundingRect(contours[static_cast<uint>(hierarchy[i][3])]);  //计算轮廓的垂直边界的最小矩形，矩形与图像的上下边界平行
         vec_color_rect.push_back(rect);
 
         if(small_rect_area < 200)
@@ -88,10 +89,10 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
         Object object;
 #ifdef FUSION_MINAREA_ELLIPASE
 
-        object.small_rect_=fitEllipse(contours[i]);
+        object.small_rect_=fitEllipse(contours[i]);  //椭圆拟合
         object.big_rect_ = fitEllipse(contours[static_cast<uint>(hierarchy[i][3])]);
 #else
-        object.small_rect_=minAreaRect(contours[i]);
+        object.small_rect_=minAreaRect(contours[i]);  //获得多边形的最小旋转矩形
         object.big_rect_ = minAreaRect(contours[static_cast<uint>(hierarchy[i][3])]);
 #endif
 
@@ -108,7 +109,7 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
 
 #endif
 #ifdef FUSION_MINAREA_ELLIPASE
-        object.diff_angle=fabsf(object.big_rect_.angle-object.small_rect_.angle);
+        object.diff_angle=fabsf(object.big_rect_.angle-object.small_rect_.angle);  //处理float的绝对值；abs:处理int的绝对值；fabs:处理double的绝对值
 
         if(object.small_rect_.size.height/object.small_rect_.size.width < 3)
         {
@@ -222,9 +223,7 @@ bool BuffDetector::DetectBuff(Mat& img, OtherParam other_param)
     return find_flag;
 }
 
-
-
-
+//击打能量机关
 int BuffDetector::BuffDetectTask(Mat& img, OtherParam other_param)
 {
     color_ = other_param.color;
@@ -251,7 +250,7 @@ int BuffDetector::BuffDetectTask(Mat& img, OtherParam other_param)
         if(direction_tmp == 1)  // shun
         {
             world_offset = Point2f(-world_offset_x, -world_offset_y);
-            pre_angle = atan(world_offset_x/(800-world_offset_y));
+            pre_angle = atan(world_offset_x/(800-world_offset_y));  //反正切
         }
         else if(direction_tmp == -1)// ni
         {
@@ -308,7 +307,6 @@ int BuffDetector::getSimpleDirection(float angle)
     else
         return 0;
 }
-
 
 void Object::UpdateOrder()
 {
@@ -376,7 +374,6 @@ void Object::UpdateOrder()
 #endif
 }
 
-
 int GetRectIntensity(const Mat &img, Rect rect){
     if(rect.width < 1 || rect.height < 1 || rect.x < 1 || rect.y < 1
             || rect.width + rect.x > img.cols || rect.height + rect.y > img.rows)
@@ -425,8 +422,6 @@ void Object::KnowYourself(Mat &img)
     imshow("test", img);
 #endif
 }
-
-
 
 double Point_distance(Point2f p1,Point2f p2)
 {
